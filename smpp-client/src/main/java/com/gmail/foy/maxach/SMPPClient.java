@@ -3,6 +3,7 @@ package com.gmail.foy.maxach;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.UUID;
 
 import org.jsmpp.InvalidResponseException;
 import org.jsmpp.PDUException;
@@ -32,6 +33,7 @@ public class SMPPClient {
     public static void main(String[] args) {
 
         String message = "Message from client";
+        System.out.println(Alphabet.ALPHA_CYRILLIC.name());
 
         SMPPSession session = new SMPPSession();
         session.setTransactionTimer(5000);
@@ -52,6 +54,7 @@ public class SMPPClient {
                 } else {
                     // regular short message
                     log.info("Receiving message : {}", new String(deliverSm.getShortMessage()));
+                    // TODO change delivery_status to 1
                 }
             }
 
@@ -80,6 +83,8 @@ public class SMPPClient {
 
                 String serviceType = "CMT";
 
+                String id = UUID.randomUUID().toString();
+
                 TypeOfNumber fromTON = TypeOfNumber.INTERNATIONAL;
                 NumberingPlanIndicator fromNPI = NumberingPlanIndicator.UNKNOWN;
                 String fromAddr = "1616";
@@ -87,6 +92,10 @@ public class SMPPClient {
                 TypeOfNumber toTON = TypeOfNumber.INTERNATIONAL;
                 NumberingPlanIndicator toNPI = NumberingPlanIndicator.UNKNOWN;
                 String toAddr = "628176504657";
+
+                Alphabet dcs = Alphabet.ALPHA_DEFAULT;
+
+                // TODO save message in db
 
                 SubmitSmResult submitSmResult = session.submitShortMessage(
                         serviceType,
@@ -103,7 +112,7 @@ public class SMPPClient {
                         null,
                         registeredDelivery,
                         (byte) 0,
-                        new GeneralDataCoding(Alphabet.ALPHA_DEFAULT, MessageClass.CLASS1, false),
+                        new GeneralDataCoding(dcs, MessageClass.CLASS1, false),
                         (byte) 0,
                         message.getBytes());
 
