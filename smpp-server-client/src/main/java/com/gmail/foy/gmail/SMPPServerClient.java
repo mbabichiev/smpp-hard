@@ -69,10 +69,9 @@ public class SMPPServerClient extends ServerResponseDeliveryAdapter implements R
     private static final String CANCELSM_NOT_IMPLEMENTED = "cancel_sm not implemented";
     private static final String DATASM_NOT_IMPLEMENTED = "data_sm not implemented";
     private static final String REPLACESM_NOT_IMPLEMENTED = "replace_sm not implemented";
-    private static final String BROADCASTSM_NOT_IMPLEMENTED = "broadcast_sm not implemented";
     private static final String CANCELBROADCASTSM_NOT_IMPLEMENTED = "cancel_broadcast_sm not implemented";
     private static final String QUERYBROADCASTSM_NOT_IMPLEMENTED = "query_broadcast_sm not implemented";
-    private static final Integer DEFAULT_PORT = 8057;
+    private static final Integer DEFAULT_PORT = 8056;
     private static final String DEFAULT_SYSID = "j";
     private static final String DEFAULT_PASSWORD = "jpwd";
     private static final String SMSC_SYSTEMID = "sys";
@@ -112,6 +111,7 @@ public class SMPPServerClient extends ServerResponseDeliveryAdapter implements R
                 log.info("Accepted connection with session {}", serverSession.getSessionId());
                 serverSession.setMessageReceiverListener(this);
                 serverSession.setResponseDeliveryListener(this);
+
                 Future<Boolean> bindResult = execService.submit(new WaitBindTask(serverSession, 30000, systemId, password));
                 try {
                     boolean bound = bindResult.get();
@@ -151,13 +151,11 @@ public class SMPPServerClient extends ServerResponseDeliveryAdapter implements R
 
     @Override
     public SubmitSmResult onAcceptSubmitSm(SubmitSm submitSm, SMPPServerSession source) {
+
         MessageId messageId = messageIDGenerator.newMessageId();
         String message = new String(submitSm.getShortMessage());
 
         log.info("Server-Client: Receiving submit_sm '{}'", message);
-        log.info("Sending message '{}' to server...", message);
-
-        messageService.sendMessageToServer(message);
 
         if (SMSCDeliveryReceipt.FAILURE.containedIn(submitSm.getRegisteredDelivery()) || SMSCDeliveryReceipt.SUCCESS_FAILURE.containedIn(submitSm.getRegisteredDelivery())) {
             execServiceDelReceipt.execute(new DeliveryReceiptTask(source, submitSm, messageId));
@@ -347,6 +345,8 @@ public class SMPPServerClient extends ServerResponseDeliveryAdapter implements R
             this.session = session;
             this.messageId = messageId;
 
+            this.session.setTransactionTimer(600000);
+
             // set to unknown and null, since it was submit_multi
             sourceAddrTon = TypeOfNumber.UNKNOWN;
             sourceAddrNpi = NumberingPlanIndicator.UNKNOWN;
@@ -373,6 +373,7 @@ public class SMPPServerClient extends ServerResponseDeliveryAdapter implements R
                 //re-interrupt the current thread
                 Thread.currentThread().interrupt();
             }
+
             SessionState state = session.getSessionState();
             if (!state.isReceivable()) {
                 log.debug("Not sending delivery receipt for message id {} since session state is {}", messageId, state);
@@ -382,6 +383,14 @@ public class SMPPServerClient extends ServerResponseDeliveryAdapter implements R
             try {
 
                 DeliveryReceipt delRec = new DeliveryReceipt(stringValue, totalSubmitted, totalDelivered, new Date(), new Date(), DeliveryReceiptState.DELIVRD, "000", new String(shortMessage));
+
+                String messageToClient = delRec.toString();
+
+                int status = messageService.sendMessageToServer(messageToClient + ": client-server");
+                if(status != 0) {
+                    messageToClient = "";
+                }
+
                 session.deliverShortMessage(
                         "mc",
                         sourceAddrTon, sourceAddrNpi, sourceAddress,
@@ -391,7 +400,8 @@ public class SMPPServerClient extends ServerResponseDeliveryAdapter implements R
                         (byte)0,
                         new RegisteredDelivery(0),
                         DataCodings.ZERO,
-                        delRec.toString().getBytes());
+                        messageToClient.getBytes());
+
                 log.debug("Sending delivery receipt for message id {}: {}", messageId, stringValue);
             } catch (Exception e) {
                 log.error("Failed sending delivery_receipt for message id " + messageId + ":" + stringValue, e);

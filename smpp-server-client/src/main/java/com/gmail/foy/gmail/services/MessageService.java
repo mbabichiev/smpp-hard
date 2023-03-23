@@ -27,7 +27,8 @@ public class MessageService {
     private static final TimeFormatter TIME_FORMATTER = new AbsoluteTimeFormatter();
 
 
-    public void sendMessageToServer(String message) {
+    public int sendMessageToServer(String message) {
+
         SMPPSession session = new SMPPSession();
         // Set listener to receive deliver_sm
         session.setMessageReceiverListener(new MessageReceiverListener() {
@@ -65,6 +66,7 @@ public class MessageService {
                     TypeOfNumber.UNKNOWN, NumberingPlanIndicator.UNKNOWN, null));
             log.info("Connected with SMSC with system id {}", systemId);
 
+            int status = -1;
             // send Message
             try {
                 // set RegisteredDelivery
@@ -72,14 +74,14 @@ public class MessageService {
                 registeredDelivery.setSMSCDeliveryReceipt(SMSCDeliveryReceipt.SUCCESS_FAILURE);
 
                 SubmitSmResult submitSmResult = session.submitShortMessage("CMT", TypeOfNumber.INTERNATIONAL,
-                        NumberingPlanIndicator.UNKNOWN, "1616", TypeOfNumber.INTERNATIONAL, NumberingPlanIndicator.UNKNOWN,
-                        "628176504657", new ESMClass(), (byte)0, (byte)1, TIME_FORMATTER.format(new Date()), null,
+                        NumberingPlanIndicator.UNKNOWN, "831", TypeOfNumber.INTERNATIONAL, NumberingPlanIndicator.UNKNOWN,
+                        "328176504657", new ESMClass(), (byte)0, (byte)1, TIME_FORMATTER.format(new Date()), null,
                         registeredDelivery, (byte)0, new GeneralDataCoding(Alphabet.ALPHA_DEFAULT, MessageClass.CLASS1,
                                 false), (byte)0, message.getBytes());
 
                 String messageId = submitSmResult.getMessageId();
                 log.info("Message submitted, message_id is {}", messageId);
-
+                status = 0;
             } catch (PDUException e) {
                 // Invalid PDU parameter
                 log.error("Invalid PDU parameter", e);
@@ -98,7 +100,7 @@ public class MessageService {
 
             // wait 3 second
             try {
-                Thread.sleep(3000);
+                Thread.sleep(500);
             } catch (InterruptedException e) {
                 log.info("Interrupted exception", e);
             }
@@ -106,8 +108,12 @@ public class MessageService {
             // unbind(disconnect)
             session.unbindAndClose();
 
+            return status;
+
         } catch (IOException e) {
             log.error("Failed connect and bind to host", e);
+
+            return -1;
         }
     }
 

@@ -1,10 +1,10 @@
 package com.gmail.foy.maxach;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.UUID;
 
+import com.gmail.foy.maxach.models.Message;
+import com.gmail.foy.maxach.services.MessageService;
 import org.jsmpp.InvalidResponseException;
 import org.jsmpp.PDUException;
 import org.jsmpp.bean.*;
@@ -12,9 +12,7 @@ import org.jsmpp.extra.ProcessRequestException;
 import org.jsmpp.session.*;
 import org.jsmpp.extra.NegativeResponseException;
 import org.jsmpp.extra.ResponseTimeoutException;
-import org.jsmpp.util.AbsoluteTimeFormatter;
-import org.jsmpp.util.InvalidDeliveryReceiptException;
-import org.jsmpp.util.TimeFormatter;
+import org.jsmpp.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,20 +21,22 @@ public class SMPPClient {
 
     private static final Logger log = LoggerFactory.getLogger(SMPPClient.class);
     private static final String HOST = "localhost";
-    private static final int PORT = 8057;
+    private static final int PORT = 8056;
     private static final String SYSID = "j";
     private static final String SYSTYPE = "cp";
     private static final String PASSWORD = "jpwd";
     private static final TimeFormatter TIME_FORMATTER = new AbsoluteTimeFormatter();
+    private static final MessageIDGenerator messageIDGenerator = new RandomMessageIDGenerator();
+    private static final MessageService messageService = new MessageService();
 
 
     public static void main(String[] args) {
 
         String message = "Message from client";
-        System.out.println(Alphabet.ALPHA_CYRILLIC.name());
 
         SMPPSession session = new SMPPSession();
         session.setTransactionTimer(5000);
+
         // Set listener to receive deliver_sm
         session.setMessageReceiverListener(new MessageReceiverListener() {
 
@@ -46,15 +46,18 @@ public class SMPPClient {
                     try {
                         DeliveryReceipt delReceipt = deliverSm.getShortMessageAsDeliveryReceipt();
                         long id = Long.parseLong(delReceipt.getId()) & 0xffffffff;
-                        String messageId = Long.toString(id, 16).toUpperCase();
+                        String messageId = Long.toString(id, 16);
                         log.info("received '{}' : {}", messageId, delReceipt);
+
+                        if(deliverSm.getShortMessage().length != 0) {
+                            messageService.updateStatus(messageId);
+                        }
+
                     } catch (InvalidDeliveryReceiptException e) {
                         log.error("receive failed, e");
                     }
                 } else {
-                    // regular short message
                     log.info("Receiving message : {}", new String(deliverSm.getShortMessage()));
-                    // TODO change delivery_status to 1
                 }
             }
 
@@ -83,8 +86,6 @@ public class SMPPClient {
 
                 String serviceType = "CMT";
 
-                String id = UUID.randomUUID().toString();
-
                 TypeOfNumber fromTON = TypeOfNumber.INTERNATIONAL;
                 NumberingPlanIndicator fromNPI = NumberingPlanIndicator.UNKNOWN;
                 String fromAddr = "1616";
@@ -94,8 +95,6 @@ public class SMPPClient {
                 String toAddr = "628176504657";
 
                 Alphabet dcs = Alphabet.ALPHA_DEFAULT;
-
-                // TODO save message in db
 
                 SubmitSmResult submitSmResult = session.submitShortMessage(
                         serviceType,
@@ -115,6 +114,20 @@ public class SMPPClient {
                         new GeneralDataCoding(dcs, MessageClass.CLASS1, false),
                         (byte) 0,
                         message.getBytes());
+
+                messageService.create(new Message(
+                        submitSmResult.getMessageId(),
+                        System.currentTimeMillis(),
+                        fromAddr,
+                        fromTON.name(),
+                        fromNPI.name(),
+                        toAddr,
+                        toTON.name(),
+                        toNPI.name(),
+                        message,
+                        dcs.name(),
+                        0
+                        ));
 
                 log.info("Message submitted, message_id is {}", submitSmResult.getMessageId());
 
