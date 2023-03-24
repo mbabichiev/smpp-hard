@@ -26,7 +26,6 @@ public class SMPPClient {
     private static final String SYSTYPE = "cp";
     private static final String PASSWORD = "jpwd";
     private static final TimeFormatter TIME_FORMATTER = new AbsoluteTimeFormatter();
-    private static final MessageIDGenerator messageIDGenerator = new RandomMessageIDGenerator();
     private static final MessageService messageService = new MessageService();
 
 
@@ -54,7 +53,7 @@ public class SMPPClient {
                         }
 
                     } catch (InvalidDeliveryReceiptException e) {
-                        log.error("receive failed, e");
+                        log.error("receive failed", e);
                     }
                 } else {
                     log.info("Receiving message : {}", new String(deliverSm.getShortMessage()));

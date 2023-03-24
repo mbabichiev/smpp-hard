@@ -52,12 +52,12 @@ public class MessageDB {
                             "(" +
                                 "id VARCHAR(30) NOT NULL PRIMARY KEY," +
                                 "publish_date BIGINT NOT NULL," +
-                                "from_addr VARCHAR(30) NOT NULL," +
-                                "from_ton VARCHAR(30) NOT NULL," +
-                                "from_npi VARCHAR(30) NOT NULL," +
-                                "to_addr VARCHAR(30) NOT NULL," +
-                                "to_ton VARCHAR(30) NOT NULL," +
-                                "to_npi VARCHAR(30) NOT NULL," +
+                                "from_addr VARCHAR(30)," +
+                                "from_ton VARCHAR(30)," +
+                                "from_npi VARCHAR(30)," +
+                                "to_addr VARCHAR(30)," +
+                                "to_ton VARCHAR(30)," +
+                                "to_npi VARCHAR(30)," +
                                 "dcs VARCHAR(30) NOT NULL," +
                                 "delivery_status TINYINT NOT NULL," +
                                 "message TEXT NOT NULL" +
